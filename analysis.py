@@ -14,7 +14,34 @@ import zipfile
 
 
 def load_data(filename : str, ds : str) -> pd.DataFrame:
-    pass
+
+    years = ['2023', '2024', '2025']
+
+    dataframe = []
+
+    with (zipfile.ZipFile(filename, "r")) as zip_file:
+        for year in years:
+            file_path = f"{year}/I{ds}.xls"
+            with zip_file.open(file_path) as file:
+                df = pd.read_html(file, encoding='cp1250')[0]
+
+                dataframe.append(df) # append dataframe to array
+
+    result = pd.concat(dataframe, ignore_index=True)
+
+    result = result.loc[:, ~result.columns.str.contains('^Unnamed')] # delete unnamed
+
+    # print(f"\n=== Načítanie datasetu '{ds}' ===")
+    # print(f"Tvar (riadky, stĺpce): {result.shape}")
+    # print(f"Počet riadkov: {len(result)}")
+    # print(f"Počet stĺpcov: {len(result.columns)}")
+    # print(f"\nNázvy stĺpcov:\n{result.columns.tolist()}")
+    # print(f"\nPrvých 5 riadkov:\n{result.head()}")
+    # print(f"\nInfo o stĺpcoch:")
+    # print(result.info())
+
+    return result
+
 
 # Ukol 2: zpracovani dat
 
