@@ -69,12 +69,12 @@ def plot_state(df: pd.DataFrame, df_vehicles: pd.DataFrame, fig_location: str = 
     # Filter only states 3-8 (excluding state 9 as it has minimal data)
     merged_filtered = merged[merged['p57'].isin([3, 4, 5, 6, 7, 8, 9])].copy()
     state_titles = {
-        3: 'Stav řidiče: invalida',
-        4: 'Stav řidiče: nemoc, úraz apod.',
+        3: 'Stav řidiče: pod vlivem léků, narkotik',
+        4: 'Stav řidiče: pod vlivem alkoholu do 0,99 ‰',
         5: 'Stav řidiče: pod vlivem alkoholu 1 ‰ a více',
-        6: 'Stav řidiče: pod vlivem alkoholu do 0,99 ‰',
-        7: 'Stav řidiče: sebevražda',
-        8: 'Stav řidiče: řidič při jízdě není zemřel'
+        6: 'Stav řidiče: nemoc, úraz apod.',
+        7: 'Stav řidiče: invalida',
+        8: 'Stav řidiče: řidič při jízdě zemřel (infarkt apod.)',
     }
 
     # Aggregate: count accidents for each (region, p57) combination
@@ -141,9 +141,78 @@ def plot_state(df: pd.DataFrame, df_vehicles: pd.DataFrame, fig_location: str = 
 
 
 # Ukol4: alkohol a roky v krajích
-def plot_alcohol(df: pd.DataFrame, df_consequences : pd.DataFrame, 
+def plot_alcohol(df: pd.DataFrame, df_consequences : pd.DataFrame,
                  fig_location: str = None, show_figure: bool = False):
-    pass
+
+    merged = df.merge(df_consequences[['p1', 'p59g']], on='p1', how='inner')
+
+    merged_alcohol = merged[merged['p11'] >= 3].copy() # filter
+
+    # Extract year and month
+    merged_alcohol['year'] = merged_alcohol['date'].dt.year
+    merged_alcohol['month'] = merged_alcohol['date'].dt.month
+
+    merged_filtered = merged_alcohol[merged_alcohol['month'] <= 10].copy() #exclude december, november
+
+    injury_map = {
+        1: 'Usmrcení',
+        2: 'Těžké zranění',
+        3: 'Lehké zranění',
+        4: 'Bez zranění'
+    }
+    merged_filtered['injury_type'] = merged_filtered['p59g'].map(injury_map)
+
+    grouped = merged_filtered.groupby(['region', 'year', 'injury_type']).size().reset_index(name='count') # agregation
+    g = sns.catplot(
+        data=grouped,
+        x='region',
+        y='count',
+        hue='year',
+        col='injury_type',
+        kind='bar',
+        col_wrap=2,  # 2 columns
+        col_order=['Usmrcení', 'Těžké zranění', 'Lehké zranění', 'Bez zranění'],
+        height=4,
+        aspect=1.5,
+        sharey=False, #Independent Y-axes!
+        palette=['#6B4C9A', '#45B7B8', '#F4D03F'],  # Purple, Teal, Yellow
+        legend=True  # Custom
+    )
+
+    for ax, injury_type in zip(g.axes.flat, injury_map.values()):
+        ax.set_title(f'Následky nehody: {injury_type}', fontsize=12, pad=10)
+        ax.set_xlabel('Kraj', fontsize=10)
+        ax.set_ylabel('Počet nehod pod vlivem', fontsize=10)
+        ax.tick_params(axis='x', labelsize=8, rotation=0)
+        ax.tick_params(axis='y', labelsize=8)
+        ax.set_facecolor('#E8E8F0')  # Light purple background
+        ax.grid(axis='y', alpha=0.3, linestyle='--', linewidth=0.5)
+
+    if g.legend:
+        g.legend.remove()
+
+    g.fig.legend(
+        title='Rok',
+        loc='center right',
+        bbox_to_anchor=(0.99, 0.5),
+        fancybox=False,
+        shadow=False,
+        frameon=False,
+        fontsize=10,
+        title_fontsize=11
+    )
+    # Layout to prevent overlap
+    g.fig.tight_layout()
+    g.fig.subplots_adjust(top=0.95)
+    g.fig.subplots_adjust(right=0.9)
+
+    if fig_location:
+        g.fig.savefig(fig_location, dpi=150, bbox_inches='tight')
+
+    if show_figure:
+        plt.show()
+    else:
+        plt.close()
 
 # Ukol 5: Podmínky v čase
 def plot_conditions(df: pd.DataFrame, fig_location: str = None,
@@ -171,8 +240,12 @@ if __name__ == "__main__":
     df2 = parse_data(df, True)
 
     plot_state(df2, df_vehicles, "01_state.png")
-    #plot_alcohol(df2, df_consequences, "02_alcohol.png", True)
+    plot_alcohol(df2, df_consequences, "02_alcohol.png", True)
     plot_conditions(df2, "03_conditions.png")
+    with zipfile.ZipFile("data_23_25.zip", 'r') as zip_file:
+        with zip_file.open("2023/Inasledky.xls") as file:
+            df_sample = pd.read_html(file, encoding='cp1250')[0]
+
 
 # Poznamka:
 # pro to, abyste se vyhnuli castemu nacitani muzete vyuzit napr
