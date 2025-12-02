@@ -7,6 +7,9 @@ import seaborn as sns
 import numpy as np
 import zipfile
 
+from matplotlib.dates import MonthLocator
+
+
 # muzete pridat libovolnou zakladni knihovnu ci knihovnu predstavenou na prednaskach
 # dalsi knihovny pak na dotaz
 
@@ -217,7 +220,90 @@ def plot_alcohol(df: pd.DataFrame, df_consequences : pd.DataFrame,
 # Ukol 5: Podmínky v čase
 def plot_conditions(df: pd.DataFrame, fig_location: str = None,
                     show_figure: bool = False):
-    pass
+    selected_regions = ['JHM', 'MSK', 'OLK', 'ZLK']
+    df_filtered = df[df['region'].isin(selected_regions)].copy()
+
+    conditions_map = {
+        0: 'jiné',
+        1: 'neztížené',
+        2: 'mlha',
+        3: 'na počátku deště',
+        4: 'déšť',
+        5: 'sněžení',
+        6: 'náledí',
+        7: 'vítr'
+    }
+
+    custom_palette = {
+        'neztížené': '#E74C3C',
+        'déšť': '#3498DB',
+        'sněžení': '#2ECC71',
+        'mlha': '#F39C12',
+        'na počátku deště': '#9B59B6',
+        'náledí': '#16A085',
+        'vítr': '#D35400',
+        'jiné': '#7F8C8D'
+    }
+
+    df_filtered['condition'] = df_filtered['p18'].map(conditions_map)
+    df_filtered['count'] = 1
+
+    grouped = df_filtered.groupby([pd.Grouper(key='date', freq='MS'), 'region', 'condition'])[
+        'count'].sum().reset_index()
+    grouped = grouped[(grouped['date'] >= '2023-01-01') & (grouped['date'] <= '2025-01-01')]
+
+    g = sns.relplot(
+        data=grouped,
+        x='date',
+        y='count',
+        hue='condition',
+        col='region',
+        col_order=['JHM', 'MSK', 'OLK', 'ZLK'],
+        kind='line',
+        col_wrap=2,
+        height=4,
+        aspect=1.75,
+        linewidth=1.5,
+        facet_kws={'xlim': (pd.Timestamp('2023-01-01'), pd.Timestamp('2025-01-01'))},
+        palette=custom_palette
+    )
+
+    from matplotlib.dates import num2date
+
+
+
+    for ax in g.axes.flat:
+        ax.set_ylabel('Počet nehod', fontsize=10)
+        ax.tick_params(labelbottom=True)
+        ax.set_yticks(range(0, 1100, 200))
+        ax.set_ylim(0, 1000)
+        ax.tick_params(axis='both', which='both', length=0)
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+        ax.spines['left'].set_visible(False)
+        ax.spines['bottom'].set_visible(False)
+        ax.set_xlim(pd.Timestamp('2023-01-01'), pd.Timestamp('2025-01-01'))
+
+
+        # num2date
+        ax.xaxis.set_major_formatter(plt.FuncFormatter(lambda x, pos: num2date(x).strftime('%m/%y') if x else ''))
+        ax.tick_params(axis='x', pad=10)
+        ax.grid(True, color='white', linewidth=2)
+        ax.set_facecolor('#F5F5FF')
+
+    g.set_titles('Kraj: {col_name}', fontsize=12)
+    g.legend.set_title('Podmínky')
+
+    plt.tight_layout()
+    g.fig.subplots_adjust(right=0.85)
+
+    if fig_location:
+        g.fig.savefig(fig_location, dpi=150, bbox_inches='tight')
+
+    if show_figure:
+        plt.show()
+    else:
+        plt.close()
 
 
 if __name__ == "__main__":
@@ -240,8 +326,8 @@ if __name__ == "__main__":
     df2 = parse_data(df, True)
 
     plot_state(df2, df_vehicles, "01_state.png")
-    plot_alcohol(df2, df_consequences, "02_alcohol.png", True)
-    plot_conditions(df2, "03_conditions.png")
+    plot_alcohol(df2, df_consequences, "02_alcohol.png")
+    plot_conditions(df2, "03_conditions.png",True)
     with zipfile.ZipFile("data_23_25.zip", 'r') as zip_file:
         with zip_file.open("2023/Inasledky.xls") as file:
             df_sample = pd.read_html(file, encoding='cp1250')[0]
