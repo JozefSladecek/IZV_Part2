@@ -31,15 +31,6 @@ def load_data(filename : str, ds : str) -> pd.DataFrame:
 
     result = result.loc[:, ~result.columns.str.contains('^Unnamed')] # delete unnamed
 
-    # print(f"\n=== Načítanie datasetu '{ds}' ===")
-    # print(f"Tvar (riadky, stĺpce): {result.shape}")
-    # print(f"Počet riadkov: {len(result)}")
-    # print(f"Počet stĺpcov: {len(result.columns)}")
-    # print(f"\nNázvy stĺpcov:\n{result.columns.tolist()}")
-    # print(f"\nPrvých 5 riadkov:\n{result.head()}")
-    # print(f"\nInfo o stĺpcoch:")
-    # print(result.info())
-
     return result
 
 
@@ -67,12 +58,87 @@ def parse_data(df: pd.DataFrame, verbose: bool = False) -> pd.DataFrame:
         memory_mb = memory_bytes / 1_000_000 # 10^6
         print(f"new_size={memory_mb:.1f} MB")
 
-# Ukol 3: počty nehod v jednotlivých regionech podle stavu řidiče
-def plot_state(df: pd.DataFrame, df_vehicles : pd.DataFrame, fig_location: str = None,
-                    show_figure: bool = False):
-    merged = df.merge(df_vehicles, on='p1', how='inner') # join tables on same rows
+    return new_df
 
-    pass
+# Ukol 3: počty nehod v jednotlivých regionech podle stavu řidiče
+def plot_state(df: pd.DataFrame, df_vehicles: pd.DataFrame, fig_location: str = None,
+               show_figure: bool = False):
+    # Merge accident data with vehicle data on accident ID
+    merged = df.merge(df_vehicles[['p1', 'p57']], on='p1', how='inner')
+
+    # Filter only states 3-8 (excluding state 9 as it has minimal data)
+    merged_filtered = merged[merged['p57'].isin([3, 4, 5, 6, 7, 8, 9])].copy()
+    state_titles = {
+        3: 'Stav řidiče: invalida',
+        4: 'Stav řidiče: nemoc, úraz apod.',
+        5: 'Stav řidiče: pod vlivem alkoholu 1 ‰ a více',
+        6: 'Stav řidiče: pod vlivem alkoholu do 0,99 ‰',
+        7: 'Stav řidiče: sebevražda',
+        8: 'Stav řidiče: řidič při jízdě není zemřel'
+    }
+
+    # Aggregate: count accidents for each (region, p57) combination
+    grouped = merged_filtered.groupby(['region', 'p57']).size().reset_index(name='count')
+
+    # Create figure with 6 subplots
+    fig, axes = plt.subplots(nrows=3, ncols=2, figsize=(12, 10))
+    fig.patch.set_facecolor('#E8F4F8')  # light blue
+    axes = axes.flatten()
+
+    # Define colors for each region (14 regions total)
+    regions = ['HKK', 'JHC', 'JHM', 'KVK', 'LBK', 'MSK', 'OLK',
+               'PAK', 'PHA', 'PLK', 'STC', 'ULK', 'VYS', 'ZLK']
+    colors = plt.cm.tab20(range(14))  # 14 distinct colors
+    region_colors = dict(zip(regions, colors))
+
+    # Create subplot
+    for idx, state in enumerate([3, 4, 5, 6, 7, 8]):
+        ax = axes[idx]
+
+        # Filter data for current state
+        state_data = grouped[grouped['p57'] == state]
+
+        # Prepare data for bar chart: X-axis = regions, Y-axis = accident count
+        x_positions = range(len(regions))
+        heights = []
+        for reg in regions:
+            reg_data = state_data[state_data['region'] == reg]
+            if len(reg_data) > 0:
+                heights.append(reg_data['count'].values[0])
+            else:
+                heights.append(0)
+
+        bar_colors = [region_colors[reg] for reg in regions]
+
+        # Draw bar chart
+        ax.bar(x_positions, heights, color=bar_colors, width=0.8)
+
+        ax.set_title(state_titles[state], fontsize=10, pad=10)
+
+        # Configure X-axis
+        ax.set_xticks(x_positions)
+        ax.set_xticklabels(regions, fontsize=8)
+        ax.set_xlabel('Kraj', fontsize=9)
+
+        # Configure Y-axis
+        ax.set_ylabel('Počet nehod', fontsize=9)
+        ax.tick_params(axis='y', labelsize=8)
+
+        # Set subplot background and grid
+        ax.set_facecolor('#E8F4F8')
+        ax.grid(axis='y', alpha=0.3, linestyle='--', linewidth=0.5)
+
+    # Adjust layout and spacing
+    plt.tight_layout()
+
+    if fig_location:
+        plt.savefig(fig_location, dpi=150, bbox_inches='tight')
+
+    if show_figure:
+        plt.show()
+    else:
+        plt.close()
+
 
 # Ukol4: alkohol a roky v krajích
 def plot_alcohol(df: pd.DataFrame, df_consequences : pd.DataFrame, 
