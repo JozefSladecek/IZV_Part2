@@ -47,11 +47,31 @@ def load_data(filename : str, ds : str) -> pd.DataFrame:
 
 
 def parse_data(df: pd.DataFrame, verbose: bool = False) -> pd.DataFrame:
-    pass
+
+    new_df = df.copy()
+    new_df['date'] = pd.to_datetime(new_df['p2a'], format='%d.%m.%Y') # add date column
+
+    region = {
+        0: "PHA", 1: "STC", 2: "JHC", 3: "PLK", 4: "ULK", 5: "HKK",
+        6: "JHM", 7: "MSK", 14: "OLK", 15: "ZLK", 16: "VYS", 17: "PAK",
+        18: "LBK", 19: "KVK"
+    }
+
+    new_df['region'] = new_df['p4a'].map(region) # add region column
+    # print(new_df.head())
+    new_df = new_df.drop_duplicates(subset='p1').reset_index(drop=True)
+
+    if verbose:
+        memory_bytes = new_df.memory_usage(deep=True).sum()
+
+        memory_mb = memory_bytes / 1_000_000 # 10^6
+        print(f"new_size={memory_mb:.1f} MB")
 
 # Ukol 3: počty nehod v jednotlivých regionech podle stavu řidiče
 def plot_state(df: pd.DataFrame, df_vehicles : pd.DataFrame, fig_location: str = None,
                     show_figure: bool = False):
+    merged = df.merge(df_vehicles, on='p1', how='inner') # join tables on same rows
+
     pass
 
 # Ukol4: alkohol a roky v krajích
@@ -70,13 +90,22 @@ if __name__ == "__main__":
     # skript nebude pri testovani pousten primo, ale budou volany konkreni
     # funkce.
 
-    df = load_data("data_23_25.zip", "nehody")
-    df_consequences = load_data("data_23_25.zip", "nasledky")
-    df_vehicles = load_data("data_23_25.zip", "Vozidla")
+    # df = load_data("data_23_25.zip", "nehody")
+    # df.to_pickle("df_nehody.pkl")
+    # df_consequences = load_data("data_23_25.zip", "nasledky")
+    # df_consequences.to_pickle("df_nasledky.pkl")
+    # df_vehicles = load_data("data_23_25.zip", "Vozidla")
+    # df_vehicles.to_pickle("df_vozidla.pkl")
+
+    # ĎALEJ - používaj toto (rýchle načítanie):
+    df = pd.read_pickle("df_nehody.pkl")
+    df_consequences = pd.read_pickle("df_nasledky.pkl")
+    df_vehicles = pd.read_pickle("df_vozidla.pkl")
+
     df2 = parse_data(df, True)
-    
+
     plot_state(df2, df_vehicles, "01_state.png")
-    plot_alcohol(df2, df_consequences, "02_alcohol.png", True)
+    #plot_alcohol(df2, df_consequences, "02_alcohol.png", True)
     plot_conditions(df2, "03_conditions.png")
 
 # Poznamka:
