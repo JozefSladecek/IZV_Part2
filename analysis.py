@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
 # coding=utf-8
+"""
+Analysis of traffic accidents in the Czech Republic (2023–2025).
+Autor: Jozef Sládeček (xsladej00)
+"""
 
 from matplotlib import pyplot as plt
 import pandas as pd
@@ -8,14 +12,13 @@ import numpy as np
 import zipfile
 
 from matplotlib.dates import MonthLocator
+from matplotlib.dates import num2date
 
 
 # muzete pridat libovolnou zakladni knihovnu ci knihovnu predstavenou na prednaskach
 # dalsi knihovny pak na dotaz
 
 # Ukol 1: nacteni dat ze ZIP souboru
-
-
 def load_data(filename : str, ds : str) -> pd.DataFrame:
     """
     Load data from ZIP file containing XLS files (in HTML format).
@@ -252,6 +255,18 @@ def plot_alcohol(df: pd.DataFrame, df_consequences: pd.DataFrame,
 # Ukol 5: Podmínky v čase
 def plot_conditions(df: pd.DataFrame, fig_location: str = None,
                     show_figure: bool = False):
+    """
+    Plot accident counts over time by weather conditions for selected regions.
+
+    Creates a 2x2 grid of line charts showing monthly accident counts
+    for different weather conditions (p18) in four selected regions
+    from January 2023 to January 2025.
+
+    Args:
+        df: Parsed accident dataframe from parse_data()
+        fig_location: Path to save figure (optional)
+        show_figure: If True, display the figure
+    """
     selected_regions = ['JHM', 'MSK', 'OLK', 'ZLK']
     df_filtered = df[df['region'].isin(selected_regions)].copy()
 
@@ -300,9 +315,6 @@ def plot_conditions(df: pd.DataFrame, fig_location: str = None,
         palette=custom_palette
     )
 
-    from matplotlib.dates import num2date
-
-
 
     for ax in g.axes.flat:
         ax.set_ylabel('Počet nehod', fontsize=10)
@@ -316,8 +328,6 @@ def plot_conditions(df: pd.DataFrame, fig_location: str = None,
         ax.spines['bottom'].set_visible(False)
         ax.set_xlim(pd.Timestamp('2023-01-01'), pd.Timestamp('2025-01-01'))
 
-
-        # num2date
         ax.xaxis.set_major_formatter(plt.FuncFormatter(lambda x, pos: num2date(x).strftime('%m/%y') if x else ''))
         ax.tick_params(axis='x', pad=10)
         ax.grid(True, color='white', linewidth=2)
@@ -357,9 +367,9 @@ if __name__ == "__main__":
 
     df2 = parse_data(df, True)
 
-    plot_state(df2, df_vehicles, "01_state.png",True)
+    #plot_state(df2, df_vehicles, "01_state.png",True)
     #plot_alcohol(df2, df_consequences, "02_alcohol.png",True)
-    #plot_conditions(df2, "03_conditions.png",True)
+    plot_conditions(df2, "03_conditions.png",True)
     with zipfile.ZipFile("data_23_25.zip", 'r') as zip_file:
         with zip_file.open("2023/Inasledky.xls") as file:
             df_sample = pd.read_html(file, encoding='cp1250')[0]
