@@ -17,29 +17,34 @@ from matplotlib.dates import MonthLocator
 
 
 def load_data(filename : str, ds : str) -> pd.DataFrame:
+    """
+    Load data from ZIP file containing XLS files (in HTML format).
 
+    Args:
+        filename: Path to the ZIP file
+        ds: Dataset name without "I" prefix (e.g. "nehody", "nasledky")
+
+    Returns:
+        DataFrame containing merged data from all years 2023-2025
+    """
     years = ['2023', '2024', '2025']
-
     dataframe = []
 
-    with (zipfile.ZipFile(filename, "r")) as zip_file:
+    with zipfile.ZipFile(filename, "r") as zip_file:
         for year in years:
             file_path = f"{year}/I{ds}.xls"
             with zip_file.open(file_path) as file:
                 df = pd.read_html(file, encoding='cp1250')[0]
 
-                dataframe.append(df) # append dataframe to array
+                dataframe.append(df)
 
     result = pd.concat(dataframe, ignore_index=True)
-
-    result = result.loc[:, ~result.columns.str.contains('^Unnamed')] # delete unnamed
+    result = result.loc[:, ~result.columns.str.contains('^Unnamed')] #delete
 
     return result
 
 
 # Ukol 2: zpracovani dat
-
-
 def parse_data(df: pd.DataFrame, verbose: bool = False) -> pd.DataFrame:
 
     new_df = df.copy()
@@ -325,9 +330,9 @@ if __name__ == "__main__":
 
     df2 = parse_data(df, True)
 
-    plot_state(df2, df_vehicles, "01_state.png")
-    plot_alcohol(df2, df_consequences, "02_alcohol.png")
-    plot_conditions(df2, "03_conditions.png",True)
+    plot_state(df2, df_vehicles, "01_state.png",True)
+    #plot_alcohol(df2, df_consequences, "02_alcohol.png",True)
+    #plot_conditions(df2, "03_conditions.png",True)
     with zipfile.ZipFile("data_23_25.zip", 'r') as zip_file:
         with zip_file.open("2023/Inasledky.xls") as file:
             df_sample = pd.read_html(file, encoding='cp1250')[0]
